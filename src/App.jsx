@@ -248,8 +248,13 @@ export default function App() {
   const currentRadioList = RADIO_STATIONS_BY_LANG[lang] || RADIO_STATIONS_BY_LANG.tr;
 
   const prevCoordsRef = useRef({ lat: null, lon: null, alt: null });
-  const audioRef = useRef(new Audio(currentRadioList[0].url));
+  const audioRef = useRef(null);
   const recognitionRef = useRef(null);
+
+  // Audio Nesnesini Güvenli Başlatma
+  useEffect(() => {
+    audioRef.current = new Audio(currentRadioList[0].url);
+  }, []);
 
   // Ses Motoru
   const speakText = (text) => {
@@ -289,7 +294,7 @@ export default function App() {
     setCurrentRadioIndex(0);
     if (audioRef.current) {
       audioRef.current.src = newStations[0].url;
-      if (isPlayingRadio) audioRef.current.play();
+      if (isPlayingRadio) audioRef.current.play().catch(() => {});
     }
     setEmergencyPhone(EMERGENCY_NUMBERS[lang] || "112");
   }, [lang]);
@@ -387,7 +392,7 @@ export default function App() {
     const handleMotion = (e) => {
       const acc = e.accelerationIncludingGravity;
       if (!acc) return;
-      const totalAcc = Math.sqrt(acc.x * acc.x + acc.y * acc.y + acc.z * acc.z);
+      const totalAcc = Math.sqrt((acc.x || 0) * (acc.x || 0) + (acc.y || 0) * (acc.y || 0) + (acc.z || 0) * (acc.z || 0));
       if (totalAcc > shakeSensitivity) {
         setPotholeAlert(true);
         speakText(t.potholeWarning);
@@ -504,15 +509,15 @@ export default function App() {
 
   const toggleFullScreen = () => {
     if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen();
+      document.documentElement.requestFullscreen().catch(() => {});
       setIsFullScreen(true);
     } else if (document.exitFullscreen) {
-      document.exitFullscreen();
+      document.exitFullscreen().catch(() => {});
       setIsFullScreen(false);
     }
   };
 
-  // Kadran Açı Hesabı (0-180 km/h -> -120 deg ile +120 deg arası)
+    // Kadran Açı Hesabı
   const needleAngle = Math.min(Math.max((speed / 180) * 240 - 120, -120), 120);
 
   if (isBooting) {
@@ -559,13 +564,12 @@ export default function App() {
           </div>
         )}
 
-        {/* HUD Sekmesi - GERÇEK ARABA TARZI ANALOG İBRELİ KADRAN */}
+        {/* HUD Sekmesi */}
         {activeTab === "hud" && (
           <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "16px" }}>
             <div style={{ textAlign: "center", margin: "auto 0", display: "flex", flexDirection: "column", alignItems: "center" }}>
               <div style={{ width: "240px", height: "240px", borderRadius: "50%", border: `8px solid ${theme.cardBg}`, backgroundColor: "rgba(0,0,0,0.3)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", position: "relative", boxShadow: `0 0 20px ${theme.primary}22` }}>
                 
-                {/* Kadran Çizgileri & Sayılar */}
                 {[0, 20, 40, 60, 80, 100, 120, 140, 160, 180].map((val) => {
                   const angle = (val / 180) * 240 - 120;
                   return (
@@ -588,7 +592,6 @@ export default function App() {
                   );
                 })}
 
-                {/* Dönen Analog İbre (Car Needle) */}
                 <div
                   style={{
                     position: "absolute",
@@ -603,7 +606,6 @@ export default function App() {
                   <div style={{ width: "100%", height: "100%", backgroundColor: "#FF2A5F", borderRadius: "4px", boxShadow: "0 0 8px #FF2A5F" }} />
                 </div>
 
-                {/* Gösterge Göbeği & Dijital Hız Ekranı */}
                 <div style={{ width: "90px", height: "90px", borderRadius: "50%", backgroundColor: theme.bg, border: `3px solid ${theme.primary}`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", zIndex: 5, boxShadow: "0 0 10px rgba(0,0,0,0.8)" }}>
                   <div style={{ fontSize: "36px", fontWeight: "900", lineHeight: "1", color: theme.primary }}>{speed}</div>
                   <div style={{ fontSize: "10px", fontWeight: "bold", letterSpacing: "1px", opacity: 0.8, marginTop: "2px" }}>{unit === "kmh" ? t.kmh : t.mph}</div>
@@ -695,22 +697,27 @@ export default function App() {
               <button onClick={() => {
                 let next = currentRadioIndex - 1 < 0 ? currentRadioList.length - 1 : currentRadioIndex - 1;
                 setCurrentRadioIndex(next);
-                audioRef.current.src = currentRadioList[next].url;
-                if (isPlayingRadio) audioRef.current.play();
+                if (audioRef.current) {
+                  audioRef.current.src = currentRadioList[next].url;
+                  if (isPlayingRadio) audioRef.current.play().catch(() => {});
+                }
               }} style={{ background: "none", border: "none", color: theme.text, cursor: "pointer" }}>
                 <SkipBack size={28} />
               </button>
               <button onClick={() => {
+                if (!audioRef.current) return;
                 if (isPlayingRadio) { audioRef.current.pause(); setIsPlayingRadio(false); }
-                else { audioRef.current.play(); setIsPlayingRadio(true); }
+                else { audioRef.current.play().catch(() => {}); setIsPlayingRadio(true); }
               }} style={{ backgroundColor: theme.primary, border: "none", borderRadius: "50%", padding: "16px", cursor: "pointer" }}>
                 {isPlayingRadio ? <Pause size={28} color="#000" /> : <Play size={28} color="#000" />}
               </button>
               <button onClick={() => {
                 let next = (currentRadioIndex + 1) % currentRadioList.length;
                 setCurrentRadioIndex(next);
-                audioRef.current.src = currentRadioList[next].url;
-                if (isPlayingRadio) audioRef.current.play();
+                if (audioRef.current) {
+                  audioRef.current.src = currentRadioList[next].url;
+                  if (isPlayingRadio) audioRef.current.play().catch(() => {});
+                }
               }} style={{ background: "none", border: "none", color: theme.text, cursor: "pointer" }}>
                 <SkipForward size={28} />
               </button>
@@ -764,4 +771,139 @@ export default function App() {
           <div style={{ backgroundColor: themeKey === "white" ? "#fff" : "#181A15", color: themeKey === "white" ? "#000" : "#fff", borderRadius: "16px", padding: "20px", width: "100%", maxWidth: "380px", maxHeight: "90vh", overflowY: "auto", border: "1px solid rgba(255,255,255,0.1)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
               <h3 style={{ margin: 0 }}>{t.settings}</h3>
-              <button onClick={() => setShowSettings
+              <button onClick={() => setShowSettings(false)} style={{ background: "none", border: "none", color: theme.text, cursor: "pointer" }}>
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Dil Seçeneği */}
+            <div style={{ marginBottom: "14px" }}>
+              <label style={{ fontSize: "11px", opacity: 0.7, display: "block", marginBottom: "6px" }}>{t.language}</label>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "6px" }}>
+                {LANGUAGES.map((item) => (
+                  <button key={item.code} onClick={() => setLang(item.code)} style={{ padding: "6px", borderRadius: "6px", border: "none", backgroundColor: lang === item.code ? theme.primary : "rgba(255,255,255,0.1)", color: lang === item.code ? "#000" : theme.text, fontWeight: "bold", fontSize: "11px", cursor: "pointer" }}>
+                    {item.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Hız Birimi */}
+            <div style={{ marginBottom: "14px" }}>
+              <label style={{ fontSize: "11px", opacity: 0.7, display: "block", marginBottom: "6px" }}>{t.unit}</label>
+              <div style={{ display: "flex", gap: "6px" }}>
+                <button onClick={() => setUnit("kmh")} style={{ flex: 1, padding: "6px", borderRadius: "6px", border: "none", backgroundColor: unit === "kmh" ? theme.primary : "rgba(255,255,255,0.1)", color: unit === "kmh" ? "#000" : theme.text, fontWeight: "bold" }}>KM/H</button>
+                <button onClick={() => setUnit("mph")} style={{ flex: 1, padding: "6px", borderRadius: "6px", border: "none", backgroundColor: unit === "mph" ? theme.primary : "rgba(255,255,255,0.1)", color: unit === "mph" ? "#000" : theme.text, fontWeight: "bold" }}>MPH</button>
+              </div>
+            </div>
+
+            {/* Çukur Algılama Aç/Kapat & Hassasiyet Slider'ı */}
+            <div style={{ marginBottom: "14px", padding: "10px", background: "rgba(255,255,255,0.03)", borderRadius: "10px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: isPotholeEnabled ? "10px" : "0" }}>
+                <label style={{ fontSize: "11px", opacity: 0.7 }}>{t.potholeDetection}</label>
+                <button
+                  onClick={() => setIsPotholeEnabled(!isPotholeEnabled)}
+                  style={{
+                    padding: "6px 12px",
+                    borderRadius: "20px",
+                    border: "none",
+                    backgroundColor: isPotholeEnabled ? theme.primary : "rgba(255,255,255,0.1)",
+                    color: isPotholeEnabled ? "#000" : theme.text,
+                    fontWeight: "bold",
+                    fontSize: "11px",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "4px"
+                  }}
+                >
+                  {isPotholeEnabled ? <ShieldCheck size={14} /> : <ShieldOff size={14} />}
+                  {isPotholeEnabled ? "AÇIK" : "KAPALI"}
+                </button>
+              </div>
+
+              {isPotholeEnabled && (
+                <div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "10px", opacity: 0.7, marginBottom: "4px" }}>
+                    <span>{t.sensitivity}</span>
+                    <span>{shakeSensitivity} (10 = Hassas, 30 = Sert)</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="10"
+                    max="30"
+                    step="1"
+                    value={shakeSensitivity}
+                    onChange={(e) => setShakeSensitivity(Number(e.target.value))}
+                    style={{ width: "100%", accentColor: theme.primary, cursor: "pointer" }}
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Acil Durum Numarası Girişi */}
+            <div style={{ marginBottom: "14px" }}>
+              <label style={{ fontSize: "11px", opacity: 0.7, display: "block", marginBottom: "6px" }}>{t.emergencyNum}</label>
+              <input
+                type="text"
+                value={emergencyPhone}
+                onChange={(e) => setEmergencyPhone(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "8px",
+                  borderRadius: "6px",
+                  border: "1px solid rgba(255,255,255,0.2)",
+                  backgroundColor: "rgba(0,0,0,0.2)",
+                  color: theme.text,
+                  fontWeight: "bold",
+                  fontSize: "12px"
+                }}
+              />
+            </div>
+
+            {/* Tema Seçimi */}
+            <div style={{ marginBottom: "14px" }}>
+              <label style={{ fontSize: "11px", opacity: 0.7, display: "block", marginBottom: "6px" }}>{t.theme}</label>
+              <div style={{ display: "flex", gap: "6px" }}>
+                {Object.keys(THEMES).map((key) => (
+                  <button key={key} onClick={() => setThemeKey(key)} style={{ flex: 1, height: "30px", borderRadius: "6px", border: themeKey === key ? "2px solid #000" : "1px solid #666", backgroundColor: THEMES[key].primary, cursor: "pointer" }} />
+                ))}
+              </div>
+            </div>
+
+            {/* Geliştirici Seçenekleri Panel Alanı */}
+            {isDevUnlocked && (
+              <div style={{ marginBottom: "16px", padding: "12px", background: "rgba(255,255,255,0.05)", borderRadius: "10px", border: `1px solid ${theme.primary}` }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", fontWeight: "bold", color: theme.primary, marginBottom: "8px" }}>
+                  <Terminal size={14} /> {t.devOptions}
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
+                  <button onClick={() => { setActiveTab("hud"); setShowSettings(false); }} style={{ padding: "6px", fontSize: "11px", borderRadius: "6px", border: "none", background: "rgba(255,255,255,0.1)", color: theme.text, cursor: "pointer" }}>{t.devHud}</button>
+                  <button onClick={() => { setActiveTab("compass"); setShowSettings(false); }} style={{ padding: "6px", fontSize: "11px", borderRadius: "6px", border: "none", background: "rgba(255,255,255,0.1)", color: theme.text, cursor: "pointer" }}>{t.devCompass}</button>
+                  <button onClick={() => { setActiveTab("map"); setShowSettings(false); }} style={{ padding: "6px", fontSize: "11px", borderRadius: "6px", border: "none", background: "rgba(255,255,255,0.1)", color: theme.text, cursor: "pointer" }}>{t.devMap}</button>
+                  <button onClick={() => { setActiveTab("radio"); setShowSettings(false); }} style={{ padding: "6px", fontSize: "11px", borderRadius: "6px", border: "none", background: "rgba(255,255,255,0.1)", color: theme.text, cursor: "pointer" }}>{t.devRadio}</button>
+
+                  <button onClick={() => { setDestinationQuery("bisiklet tamircisi"); setActiveTab("map"); setShowSettings(false); speakText(`${t.voiceNav} bisiklet tamircisi`); }} style={{ padding: "6px", fontSize: "11px", borderRadius: "6px", border: "none", background: "rgba(204,255,0,0.2)", color: theme.primary, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "4px" }}>
+                    <Wrench size={12} /> {t.devRepair}
+                  </button>
+                  <button onClick={() => { setDestinationQuery("market"); setActiveTab("map"); setShowSettings(false); speakText(`${t.voiceNav} market`); }} style={{ padding: "6px", fontSize: "11px", borderRadius: "6px", border: "none", background: "rgba(204,255,0,0.2)", color: theme.primary, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "4px" }}>
+                    <ShoppingBag size={12} /> {t.devMarket}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <button onClick={() => setShowSettings(false)} style={{ width: "100%", padding: "10px", borderRadius: "8px", border: "none", backgroundColor: theme.primary, color: "#000", fontWeight: "bold", cursor: "pointer" }}>
+              {t.close}
+            </button>
+
+            {/* Versiyon Bilgisi (v0401.1) */}
+            <div onClick={handleVersionClick} style={{ textAlign: "center", marginTop: "16px", opacity: 0.4, fontSize: "10px", letterSpacing: "1px", cursor: "pointer", userSelect: "none" }}>
+              v0401.1 - VOLT System {isDevUnlocked && "(DEV ACTIVE)"}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
